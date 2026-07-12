@@ -1,9 +1,8 @@
 use embedded_graphics::{
-    mono_font::{ascii::FONT_6X10, MonoTextStyle},
-    pixelcolor::BinaryColor,
-    prelude::*,
-    text::{Baseline, Text},
+    geometry::Point, pixelcolor::BinaryColor, prelude::*, primitives::Line,
+    primitives::PrimitiveStyle,
 };
+
 use esp_idf_svc::hal::{
     i2c::{I2cConfig, I2cDriver},
     peripherals::Peripherals,
@@ -16,8 +15,23 @@ use ssd1306::{
 
 mod adc_task;
 
+const DEFAULT_LINE_POINTS: [Point; 2] = [Point::new(0, 0), Point::new(127, 0)];
+const ADC_MAX: f32 = 4095.0; // ADC driver currently only supports 12 bit values
+const MAX_ANGLE: f32 = 180.0;
+const DISPLAY_MAX_X: f32 = 127.0;
+
+fn adc_to_angle(raw_adc: u16) -> f32 {
+    raw_adc as f32 / ADC_MAX * MAX_ANGLE
+}
+
+fn angle_to_point(angle: f32) -> Point {
+    let x = (angle / MAX_ANGLE * DISPLAY_MAX_X).round() as i32;
+
+    Point::new(x, 0)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    esp_idf_svc::sys::link_patches(); // TODO: buy ESP32 with RISCV...
+    esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
     let cfg = I2cConfig::new().baudrate(400.kHz().into());
@@ -42,17 +56,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     .into_buffered_graphics_mode();
     display.init().unwrap();
 
-    let text_style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
-
+    let display_size = display.size();
+    let starting_point = Point::new(
+        ((display_size.width - 1) / 2) as i32,
+        (display_size.height - 1) as i32,
+    );
     loop {
         display.clear(BinaryColor::Off).unwrap();
 
-        Text::with_baseline("Potentiometer", Point::zero(), text_style, Baseline::Top)
-            .draw(&mut display)
-            .unwrap();
+        DEFAULT_LINE_POINTS.iter().for_each(|point| {
+            let line = Line::new(starting_point, *point)
+                .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1));
+            line.draw(&mut display).unwrap();
+        });
 
-        let value = format!("ADC: {}", pot.latest());
-        Text::with_baseline(&value, Point::new(0, 16), text_style, Baseline::Top)
+        let angle = adc_to_angle(pot.latest());
+        let current_point = angle_to_point(angle);
+
+        Line::new(starting_point, current_point)
+            .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
             .draw(&mut display)
             .unwrap();
 

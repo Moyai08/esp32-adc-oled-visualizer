@@ -57,8 +57,10 @@ pub fn spawn(
             loop {
                 match adc.read(&mut samples, delay::BLOCK) {
                     Ok(count) if count > 0 => {
-                        let newest = samples[count - 1].data();
-                        task_latest.store(newest, Ordering::Relaxed);
+                        let sum: u16 = samples[..count].iter().map(|sample| sample.data()).sum();
+                        let avg = sum / count as u16;
+
+                        task_latest.store(avg, Ordering::Relaxed);
                     }
                     Ok(_) => {}
                     Err(err) => {
