@@ -1,18 +1,26 @@
-# servo-visualizer-rs
+# Servo Visualizer in Rust
 
-Tiny ESP32 Rust project.
+Small ESP32 project in Rust. A potentiometer controls an angle indicator on a
+128×64 SSD1306 OLED. The next step is to use that calculated angle to generate a PWM signal for a servo.
 
-Right now it reads a potentiometer and shows the raw ADC value on an SSD1306
-OLED using embedded-graphics.
+At the moment it:
 
-Eventually this should become a small servo visualizer:
+- reads the potentiometer with the ESP32 ADC
+- maps the ADC value to a range from 0° to 180°
+- draws the two limits and the current position on the OLED
 
-- read potentiometer value
-- map it to a servo angle
-- draw the angle on the OLED
-- generate PWM
-- move the servo
+## Wiring
 
-This is unfinished and mainly here so I can push code while figuring things out.
+- OLED: SDA to GPIO21, SCL to GPIO22, plus 3.3 V and GND
+- Potentiometer: middle pin to GPIO32, outer pins to 3.3 V and GND
 
-Target is currently xtensa-esp32-espidf, hopefully RISCV in the future.
+## Run
+
+With the ESP Rust toolchain and `espflash` installed:
+
+```sh
+cargo run
+```
+
+## Next up
+- use the calculated angle to generate the PWM signal and move the servo
